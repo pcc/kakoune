@@ -651,9 +651,16 @@ void quit(const ParametersParser& parser, Context& context, const ShellContext&)
 {
     if (not force and ClientManager::instance().count() == 1 and not Server::instance().is_daemon())
         ensure_all_buffers_are_saved();
+    else if (not force and context.buffer().is_modified())
+        throw runtime_error("buffer modified");
 
     const int status = parser.positional_count() > 0 ? str_to_int(parser[0]) : 0;
     ClientManager::instance().remove_client(context.client(), true, status);
+
+    if (!any_of(ClientManager::instance(), [&](auto &&c) { return &c->window().buffer() == &context.buffer(); })) {
+        BufferManager::instance().delete_buffer(context.buffer());
+        context.forget_buffer(context.buffer());
+    }
 }
 
 const CommandDesc quit_cmd = {

@@ -4,6 +4,7 @@
 #include "buffer_manager.hh"
 #include "buffer_utils.hh"
 #include "client.hh"
+#include "command_manager.hh"
 #include "context.hh"
 #include "diff.hh"
 #include "file.hh"
@@ -73,6 +74,22 @@ void Buffer::on_registered()
 
     if (m_flags & Flags::File)
     {
+        {
+            InputHandler hook_handler{{ *this, Selection{} },
+                                      Context::Flags::Draft,
+                                      ""};
+
+            std::string dir = m_name.c_str();
+            while (dir.size() > 1) {
+                dir = dir.substr(0, dir.rfind('/', dir.size() - 2) + 1);
+                std::string kakrc = dir + ".kakrc";
+
+                struct stat s;
+                if (stat(kakrc.c_str(), &s) == 0) {
+                    CommandManager::instance().execute(format("source {}", StringView(kakrc.c_str(), kakrc.size())), hook_handler.context());
+                }
+            }
+        }
         if (m_flags & Buffer::Flags::New)
             run_hook_in_own_context(Hook::BufNewFile, m_name);
         else

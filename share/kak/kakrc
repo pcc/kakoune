@@ -48,3 +48,7 @@ evaluate-commands %sh{
         echo "source '${kak_config}/kakrc'"
     fi
 }
+
+set -add global ui_options terminal_enable_mouse=false
+add-highlighter global/ wrap
+set global indentwidth 2

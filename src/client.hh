@@ -73,6 +73,8 @@ public:
 
     int pid() const { return m_pid; }
 
+    Window &window() const { return *m_window.get(); }
+
 private:
     void on_option_changed(const Option& option) override;
 

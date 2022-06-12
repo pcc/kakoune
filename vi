@@ -1,0 +1,5 @@
+#!/bin/sh
+
+kak=$(dirname $(realpath $0))/src/kak
+
+$kak -s main "$@" || $kak -c main "$@"
