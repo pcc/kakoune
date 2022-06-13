@@ -649,7 +649,7 @@ private:
     StringView m_regex;
     Iterator m_pos;
 
-    Flags m_flags = Flags::DotMatchesNewLine;
+    Flags m_flags = Flags::None;
 
     static constexpr struct CharacterClassEscape {
         Codepoint cp;
