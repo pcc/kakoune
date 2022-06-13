@@ -2206,22 +2206,23 @@ void clang_format(Context& context, NormalParams)
             break;
         ++newline_pos;
     }
-    out = out.substr(newline_pos + 1).str();
+    if (newline_pos < out.length())
+        out = out.substr(newline_pos + 1).str();
 
-    CharCount in_length = in.char_length();
-    CharCount out_length = out.char_length();
+    ByteCount in_length = in.length();
+    ByteCount out_length = out.length();
 
-    CharCount begin_pos = 0;
+    ByteCount begin_pos = 0;
     while (begin_pos < in_length && in[begin_pos] == out[begin_pos]) ++begin_pos;
 
     if (begin_pos == in_length)
         return;
 
-    CharCount end_pos = in_length;
+    ByteCount end_pos = in_length;
     while (in[end_pos - 1] == out[out_length - in_length + end_pos - 1]) --end_pos;
 
-    BufferCoord diff_begin = utf8::advance(buffer.begin(), buffer.end() - 1, begin_pos).coord();
-    BufferCoord diff_end = utf8::advance(buffer.begin(), buffer.end() - 1, end_pos).coord(); 
+    BufferCoord diff_begin = (buffer.begin() + begin_pos).coord();
+    BufferCoord diff_end = (buffer.begin() + end_pos).coord();
 
     buffer.replace(diff_begin, diff_end, out.substr(begin_pos, out_length - in_length + end_pos - begin_pos));
 
