@@ -52,3 +52,4 @@ evaluate-commands %sh{
 set -add global ui_options terminal_enable_mouse=false
 add-highlighter global/ wrap
 set global indentwidth 2
+map global normal * "w _ b *"

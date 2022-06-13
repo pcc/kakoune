@@ -626,9 +626,21 @@ void yank(Context& context, NormalParams params)
                            context.faces()["Information"] });
 }
 
+enum Direction { Backward = -1, Forward = 1 };
+
+template<typename Type, Direction direction, SelectMode mode = SelectMode::Replace>
+void move_cursor(Context& context, NormalParams params);
+
 template<bool yank>
 void erase_selections(Context& context, NormalParams params)
 {
+    if (params.count > 1)
+    {
+        NormalParams new_params = params;
+        new_params.count--;
+        move_cursor<CharCount, Forward, SelectMode::Extend>(context, new_params);
+    }
+
     if (yank)
     {
         const char reg = params.reg ? params.reg : '"';
@@ -641,6 +653,13 @@ void erase_selections(Context& context, NormalParams params)
 template<bool yank>
 void change(Context& context, NormalParams params)
 {
+    if (params.count > 1)
+    {
+        NormalParams new_params = params;
+        new_params.count--;
+        move_cursor<CharCount, Forward, SelectMode::Extend>(context, new_params);
+    }
+
     if (yank)
     {
         const char reg = params.reg ? params.reg : '"';
@@ -1396,8 +1415,6 @@ void select_object(Context& context, NormalParams params)
          {{alt(';')},    "run command in object context"}}));
 }
 
-enum Direction { Backward = -1, Forward = 1 };
-
 template<Direction direction, bool half = false>
 void scroll(Context& context, NormalParams params)
 {
@@ -2064,7 +2081,7 @@ void repeated(Context& context, NormalParams params)
     do { func(context, {0, params.reg}); } while(--params.count > 0);
 }
 
-template<typename Type, Direction direction, SelectMode mode = SelectMode::Replace>
+template<typename Type, Direction direction, SelectMode mode>
 void move_cursor(Context& context, NormalParams params)
 {
     kak_assert(mode == SelectMode::Replace or mode == SelectMode::Extend);
