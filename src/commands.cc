@@ -657,7 +657,9 @@ void quit(const ParametersParser& parser, Context& context, const ShellContext&)
     const int status = parser.positional_count() > 0 ? str_to_int(parser[0]) : 0;
     ClientManager::instance().remove_client(context.client(), true, status);
 
-    if (!any_of(ClientManager::instance(), [&](auto &&c) { return &c->window().buffer() == &context.buffer(); })) {
+    if (!any_of(ClientManager::instance(), [&](auto &&c)
+                { return &c->window().buffer() == &context.buffer(); }))
+    {
         BufferManager::instance().delete_buffer(context.buffer());
         context.forget_buffer(context.buffer());
     }

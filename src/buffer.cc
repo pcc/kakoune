@@ -80,13 +80,18 @@ void Buffer::on_registered()
                                       ""};
 
             std::string dir = m_name.c_str();
-            while (dir.size() > 1) {
+            while (dir.size() > 1)
+            {
                 dir = dir.substr(0, dir.rfind('/', dir.size() - 2) + 1);
                 std::string kakrc = dir + ".kakrc";
 
                 struct stat s;
-                if (stat(kakrc.c_str(), &s) == 0) {
-                    CommandManager::instance().execute(format("source {}", StringView(kakrc.c_str(), kakrc.size())), hook_handler.context());
+                if (stat(kakrc.c_str(), &s) == 0)
+                {
+                    CommandManager::instance().execute(
+                        format("source {}",
+                               StringView(kakrc.c_str(), kakrc.size())),
+                        hook_handler.context());
                 }
             }
         }

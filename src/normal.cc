@@ -2175,10 +2175,12 @@ void clang_format(Context& context, NormalParams)
     Buffer& buffer = context.buffer();
 
     String cmd = "clang-format --style=file";
-    for (auto &sel : sel_list) {
+    for (auto &sel : sel_list)
+    {
         int line1 = int(sel.anchor().line) + 1;
         int line2 = int(sel.cursor().line) + 1;
-        if (line1 > line2) {
+        if (line1 > line2)
+        {
             std::swap(line1, line2);
         }
         cmd += format(" --lines={}:{}", line1, line2);
@@ -2199,12 +2201,14 @@ void clang_format(Context& context, NormalParams)
         ShellManager::Flags::WaitForStdout).first;
 
     int new_cursor;
-    if (sscanf(out.c_str(), "{ \"Cursor\" : %d", &new_cursor) != 1) {
+    if (sscanf(out.c_str(), "{ \"Cursor\" : %d", &new_cursor) != 1)
+    {
         new_cursor = 0;
     }
 
     ByteCount newline_pos = 0;
-    for (char c : out) {
+    for (char c : out)
+    {
         if (c == '\n')
             break;
         ++newline_pos;
@@ -2216,21 +2220,25 @@ void clang_format(Context& context, NormalParams)
     ByteCount out_length = out.length();
 
     ByteCount begin_pos = 0;
-    while (begin_pos < in_length && in[begin_pos] == out[begin_pos]) ++begin_pos;
+    while (begin_pos < in_length && in[begin_pos] == out[begin_pos])
+        ++begin_pos;
 
     if (begin_pos == in_length)
         return;
 
     ByteCount end_pos = in_length;
-    while (in[end_pos - 1] == out[out_length - in_length + end_pos - 1]) --end_pos;
+    while (in[end_pos - 1] == out[out_length - in_length + end_pos - 1])
+        --end_pos;
 
     BufferCoord diff_begin = (buffer.begin() + begin_pos).coord();
     BufferCoord diff_end = (buffer.begin() + end_pos).coord();
 
-    buffer.replace(diff_begin, diff_end, out.substr(begin_pos, out_length - in_length + end_pos - begin_pos));
+    buffer.replace(
+        diff_begin, diff_end,
+        out.substr(begin_pos, out_length - in_length + end_pos - begin_pos));
 
-    context.selections_write_only() = { buffer, (buffer.begin() + new_cursor).coord()
-};
+    context.selections_write_only() = {buffer,
+                                       (buffer.begin() + new_cursor).coord()};
 }
 
 constexpr size_t keymap_max_size = 512;
