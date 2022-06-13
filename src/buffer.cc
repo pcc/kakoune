@@ -17,6 +17,7 @@
 #include "window.hh"
 
 #include <algorithm>
+#include <string>
 
 namespace Kakoune
 {
