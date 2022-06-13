@@ -1,0 +1,6 @@
+---
+BreakBeforeBraces: Stroustrup
+ColumnLimit: '80'
+IndentWidth: '4'
+Language: Cpp
+UseTab: Never

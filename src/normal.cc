@@ -2174,7 +2174,7 @@ void clang_format(Context& context, NormalParams)
     auto &sel_list = context.selections();
     Buffer& buffer = context.buffer();
 
-    String cmd = "clang-format";
+    String cmd = "clang-format --style=file";
     for (auto &sel : sel_list) {
         int line1 = int(sel.anchor().line) + 1;
         int line2 = int(sel.cursor().line) + 1;
@@ -2184,8 +2184,11 @@ void clang_format(Context& context, NormalParams)
         cmd += format(" --lines={}:{}", line1, line2);
     }
 
-    size_t cursor_pos = BufferIterator(buffer, sel_list[sel_list.main_index()].cursor()) - buffer.begin();
+    size_t cursor_pos =
+        BufferIterator(buffer, sel_list[sel_list.main_index()].cursor()) -
+        buffer.begin();
     cmd += format(" --cursor={}", cursor_pos);
+    cmd += format(" --assume-filename={}", buffer.name());
 
     BufferCoord begin = BufferCoord{0,0};
     BufferCoord end = buffer.end_coord();
