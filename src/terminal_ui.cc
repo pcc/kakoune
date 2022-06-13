@@ -863,6 +863,8 @@ Optional<Key> TerminalUI::get_next_key()
                 return Key{Key::Modifiers::Shift, Key::F7 + params[0][0] - 31}; // rxvt style
             case 33: case 34:
                 return Key{Key::Modifiers::Shift, Key::F9 + params[0][0] - 33}; // rxvt style
+            case 200: return {Key::BeginBracketedPaste};
+            case 201: return {Key::EndBracketedPaste};
             }
             return {};
         case 'u':
@@ -1417,12 +1419,14 @@ void TerminalUI::setup_terminal()
         "\033[?25l"   // hide cursor
         "\033="       // set application keypad mode, so the keypad keys send unique codes
         "\033[?2026$p" // query support for synchronize output
+        "\033[?2004h" // enable bracketed paste
     );
 }
 
 void TerminalUI::restore_terminal()
 {
     write(STDOUT_FILENO,
+        "\033[?2004l"
         "\033>"
         "\033[?25h"
         "\033[23t"

@@ -1716,9 +1716,24 @@ void InputHandler::handle_key(Key key)
     ++m_handle_key_level;
     auto dec = on_scope_end([this]{ --m_handle_key_level; });
 
-    auto process_key = [&](Key key) {
+    auto process_key = [&](Key key)
+    {
         if (m_last_insert.recording)
             m_last_insert.keys.push_back(key);
+        if (key == Key::BeginBracketedPaste)
+        {
+            context().hooks_disabled().set();
+            if (dynamic_cast<InputModes::Normal *>(&current_mode()))
+            {
+                insert(InsertMode::Insert, 0);
+            }
+            return;
+        }
+        if (key == Key::EndBracketedPaste)
+        {
+            context().hooks_disabled().unset();
+            return;
+        }
         current_mode().handle_key(key);
     };
 
