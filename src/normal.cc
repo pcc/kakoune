@@ -2169,6 +2169,66 @@ void force_redraw(Context& context, NormalParams)
     }
 }
 
+void clang_format(Context& context, NormalParams)
+{
+    auto &sel_list = context.selections();
+    Buffer& buffer = context.buffer();
+
+    String cmd = "clang-format";
+    for (auto &sel : sel_list) {
+        int line1 = int(sel.anchor().line) + 1;
+        int line2 = int(sel.cursor().line) + 1;
+        if (line1 > line2) {
+            std::swap(line1, line2);
+        }
+        cmd += format(" --lines={}:{}", line1, line2);
+    }
+
+    size_t cursor_pos = BufferIterator(buffer, sel_list[sel_list.main_index()].cursor()) - buffer.begin();
+    cmd += format(" --cursor={}", cursor_pos);
+
+    BufferCoord begin = BufferCoord{0,0};
+    BufferCoord end = buffer.end_coord();
+    String in = buffer.string(begin, end);
+
+    String out = ShellManager::instance().eval(
+        cmd, context, in,
+        ShellManager::Flags::WaitForStdout).first;
+
+    int new_cursor;
+    if (sscanf(out.c_str(), "{ \"Cursor\" : %d", &new_cursor) != 1) {
+        new_cursor = 0;
+    }
+
+    ByteCount newline_pos = 0;
+    for (char c : out) {
+        if (c == '\n')
+            break;
+        ++newline_pos;
+    }
+    out = out.substr(newline_pos + 1).str();
+
+    CharCount in_length = in.char_length();
+    CharCount out_length = out.char_length();
+
+    CharCount begin_pos = 0;
+    while (begin_pos < in_length && in[begin_pos] == out[begin_pos]) ++begin_pos;
+
+    if (begin_pos == in_length)
+        return;
+
+    CharCount end_pos = in_length;
+    while (in[end_pos - 1] == out[out_length - in_length + end_pos - 1]) --end_pos;
+
+    BufferCoord diff_begin = utf8::advance(buffer.begin(), buffer.end() - 1, begin_pos).coord();
+    BufferCoord diff_end = utf8::advance(buffer.begin(), buffer.end() - 1, end_pos).coord(); 
+
+    buffer.replace(diff_begin, diff_end, out.substr(begin_pos, out_length - in_length + end_pos - begin_pos));
+
+    context.selections_write_only() = { buffer, (buffer.begin() + new_cursor).coord()
+};
+}
+
 constexpr size_t keymap_max_size = 512;
 
 template<typename T, MemoryDomain domain>
@@ -2389,6 +2449,7 @@ static constexpr HashMap<Key, NormalCmd, MemoryDomain::Undefined, KeymapBackend>
     { {alt('Z')}, {"combine selections to register", save_selections<true>} },
 
     { {ctrl('l')}, {"force redraw", force_redraw} },
+    { {ctrl('k')}, {"clang-format", clang_format} },
 };
 
 Optional<NormalCmd> get_normal_command(Key key)
