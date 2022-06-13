@@ -53,3 +53,5 @@ set -add global ui_options terminal_enable_mouse=false
 add-highlighter global/ wrap
 set global indentwidth 2
 map global normal * "w _ b *"
+map global normal 0 <a-h>
+map global normal $ <a-l>
