@@ -543,6 +543,66 @@ BufferCoord apply_diff(Buffer& buffer, BufferCoord pos, StringView before, Strin
     return pos;
 }
 
+template <bool replace> void do_pipe(StringView cmdline, Context &context)
+{
+    Buffer &buffer = context.buffer();
+    SelectionList selections = context.selections();
+    if (replace)
+    {
+        ScopedEdition edition(context);
+        ForwardChangesTracker changes_tracker;
+        size_t timestamp = buffer.timestamp();
+        Vector<Selection> new_sels;
+        for (auto &sel : selections)
+        {
+            const auto beg = changes_tracker.get_new_coord_tolerant(sel.min());
+            const auto end = changes_tracker.get_new_coord_tolerant(sel.max());
+
+            String in = buffer.string(beg, buffer.char_next(end));
+            // Needed in case we read selections inside the cmdline
+            context.selections_write_only().set(
+                {keep_direction(Selection{beg, end}, sel)}, 0);
+
+            String out = ShellManager::instance()
+                             .eval(cmdline, context, in,
+                                   ShellManager::Flags::WaitForStdout)
+                             .first;
+
+            if (in.back() != '\n' and not out.empty() and out.back() == '\n')
+                out.resize(out.length() - 1, 0);
+
+            auto new_end = apply_diff(buffer, beg, in, out);
+            if (new_end != beg)
+                new_sels.push_back(keep_direction(
+                    {beg, buffer.char_prev(new_end), std::move(sel.captures())},
+                    sel));
+            else
+            {
+                if (new_end != BufferCoord{})
+                    new_end = buffer.char_prev(new_end);
+                new_sels.push_back(
+                    {new_end, new_end, std::move(sel.captures())});
+            }
+
+            changes_tracker.update(buffer, timestamp);
+        }
+        context.selections_write_only().set(std::move(new_sels),
+                                            selections.main_index());
+    }
+    else
+    {
+        const auto old_main = selections.main_index();
+        for (int i = 0; i < selections.size(); ++i)
+        {
+            selections.set_main_index(i);
+            ShellManager::instance().eval(cmdline, context,
+                                          content(buffer, selections.main()),
+                                          ShellManager::Flags::None);
+        }
+        selections.set_main_index(old_main);
+    }
+}
+
 template<bool replace>
 void pipe(Context& context, NormalParams params)
 {
@@ -564,56 +624,7 @@ void pipe(Context& context, NormalParams params)
             if (cmdline.empty())
                 return;
 
-            Buffer& buffer = context.buffer();
-            SelectionList selections = context.selections();
-            if (replace)
-            {
-                ScopedEdition edition(context);
-                ForwardChangesTracker changes_tracker;
-                size_t timestamp = buffer.timestamp();
-                Vector<Selection> new_sels;
-                for (auto& sel : selections)
-                {
-                    const auto beg = changes_tracker.get_new_coord_tolerant(sel.min());
-                    const auto end = changes_tracker.get_new_coord_tolerant(sel.max());
-
-                    String in = buffer.string(beg, buffer.char_next(end));
-                    // Needed in case we read selections inside the cmdline
-                    context.selections_write_only().set({keep_direction(Selection{beg, end}, sel)}, 0);
-
-                    String out = ShellManager::instance().eval(
-                        cmdline, context, in,
-                        ShellManager::Flags::WaitForStdout).first;
-
-                    if (in.back() != '\n' and not out.empty() and out.back() == '\n')
-                        out.resize(out.length()-1, 0);
-
-                    auto new_end = apply_diff(buffer, beg, in, out);
-                    if (new_end != beg)
-                        new_sels.push_back(keep_direction({beg, buffer.char_prev(new_end), std::move(sel.captures())}, sel));
-                    else
-                    {
-                        if (new_end != BufferCoord{})
-                            new_end = buffer.char_prev(new_end);
-                        new_sels.push_back({new_end, new_end, std::move(sel.captures())});
-                    }
-
-                    changes_tracker.update(buffer, timestamp);
-                }
-                context.selections_write_only().set(std::move(new_sels), selections.main_index());
-            }
-            else
-            {
-                const auto old_main = selections.main_index();
-                for (int i = 0; i < selections.size(); ++i)
-                {
-                    selections.set_main_index(i);
-                    ShellManager::instance().eval(cmdline, context,
-                                                  content(buffer, selections.main()),
-                                                  ShellManager::Flags::None);
-                }
-                selections.set_main_index(old_main);
-            }
+            do_pipe<replace>(cmdline, context);
         });
 }
 
@@ -2186,6 +2197,46 @@ void force_redraw(Context& context, NormalParams)
     }
 }
 
+void replace_diff(Context &context, StringView in, StringView out)
+{
+    Buffer& buffer = context.buffer();
+
+    ByteCount in_length = in.length();
+    ByteCount out_length = out.length();
+
+    ByteCount begin_pos = 0;
+    while (begin_pos < in_length && in[begin_pos] == out[begin_pos])
+        ++begin_pos;
+
+    if (begin_pos == in_length)
+        return;
+
+    ByteCount end_pos = in_length;
+    while (in[end_pos - 1] == out[out_length - in_length + end_pos - 1])
+        --end_pos;
+
+    BufferCoord diff_begin = (buffer.begin() + begin_pos).coord();
+    BufferCoord diff_end = (buffer.begin() + end_pos).coord();
+
+    buffer.replace(
+        diff_begin, diff_end,
+        out.substr(begin_pos, out_length - in_length + end_pos - begin_pos));
+}
+
+void pipe_replace_diff(Context &context, StringView cmd) {
+    Buffer& buffer = context.buffer();
+
+    BufferCoord begin = BufferCoord{0,0};
+    BufferCoord end = buffer.end_coord();
+    String in = buffer.string(begin, end);
+
+    String out = ShellManager::instance().eval(
+        cmd, context, in,
+        ShellManager::Flags::WaitForStdout).first;
+
+    replace_diff(context, in, out);
+}
+
 void clang_format(Context& context, NormalParams)
 {
     auto &sel_list = context.selections();
@@ -2233,29 +2284,36 @@ void clang_format(Context& context, NormalParams)
     if (newline_pos < out.length())
         out = out.substr(newline_pos + 1).str();
 
-    ByteCount in_length = in.length();
-    ByteCount out_length = out.length();
-
-    ByteCount begin_pos = 0;
-    while (begin_pos < in_length && in[begin_pos] == out[begin_pos])
-        ++begin_pos;
-
-    if (begin_pos == in_length)
-        return;
-
-    ByteCount end_pos = in_length;
-    while (in[end_pos - 1] == out[out_length - in_length + end_pos - 1])
-        --end_pos;
-
-    BufferCoord diff_begin = (buffer.begin() + begin_pos).coord();
-    BufferCoord diff_end = (buffer.begin() + end_pos).coord();
-
-    buffer.replace(
-        diff_begin, diff_end,
-        out.substr(begin_pos, out_length - in_length + end_pos - begin_pos));
+    replace_diff(context, in, out);
 
     context.selections_write_only() = {buffer,
                                        (buffer.begin() + new_cursor).coord()};
+}
+
+void reformat(Context &context, NormalParams params)
+{
+    Buffer& buffer = context.buffer();
+    if (buffer.name().ends_with(".c") || buffer.name().ends_with(".cc") ||
+        buffer.name().ends_with(".cpp") || buffer.name().ends_with(".h") ||
+        buffer.name().ends_with(".hpp") || buffer.name().ends_with(".hh"))
+    {
+        clang_format(context, params);
+        return;
+    }
+
+    if (buffer.name().ends_with(".gn") || buffer.name().ends_with(".gni")) {
+        pipe_replace_diff(context, "gn format --stdin");
+        return;
+    }
+
+    select_and_set_last<SelectMode::Replace>(
+        context,
+        [=](Context &context, Selection &sel)
+        {
+            return select_paragraph(context, sel, 0,
+                                    ObjectFlags::ToBegin | ObjectFlags::ToEnd);
+        });
+    do_pipe<true>("fmt", context);
 }
 
 constexpr size_t keymap_max_size = 512;
@@ -2478,7 +2536,7 @@ static constexpr HashMap<Key, NormalCmd, MemoryDomain::Undefined, KeymapBackend>
     { {alt('Z')}, {"combine selections to register", save_selections<true>} },
 
     { {ctrl('l')}, {"force redraw", force_redraw} },
-    { {ctrl('k')}, {"clang-format", clang_format} },
+    { {ctrl('k')}, {"reformat", reformat} },
 };
 
 Optional<NormalCmd> get_normal_command(Key key)
