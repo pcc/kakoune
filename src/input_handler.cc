@@ -354,6 +354,7 @@ public:
     StringView name() const override { return "normal"; }
 
 private:
+    friend class Kakoune::InputHandler;
     friend struct InputHandler::ScopedForceNormal;
 
     NormalParams m_params = { 0, 0 };
@@ -1739,7 +1740,12 @@ void InputHandler::handle_key(Key key)
 
     const auto keymap_mode = current_mode().keymap_mode();
     KeymapManager& keymaps = m_context.keymaps();
-    if (keymaps.is_mapped(key, keymap_mode) and not m_context.keymaps_disabled())
+    if (keymaps.is_mapped(key, keymap_mode) and
+        not m_context.keymaps_disabled() and
+        not(dynamic_cast<InputModes::Normal *>(&current_mode()) &&
+            dynamic_cast<InputModes::Normal &>(current_mode()).m_params.count !=
+                0 and
+            key == '0'))
     {
         ScopedSetBool disable_history{context().history_disabled()};
         for (auto& k : keymaps.get_mapping(key, keymap_mode).keys)
