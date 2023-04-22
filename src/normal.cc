@@ -1749,10 +1749,15 @@ void spaces_to_tabs(Context& context, NormalParams params)
     Vector<Selection> spaces;
     for (auto& sel : context.selections())
     {
+        bool start_of_line = true;
         for (auto it = buffer.iterator_at(sel.min()),
                   end = buffer.iterator_at(sel.max())+1; it != end;)
         {
-            if (*it == ' ')
+            if (*it == '\n') {
+                ++it;
+                start_of_line = true;
+            }
+            else if (*it == ' ' && start_of_line)
             {
                 auto spaces_beg = it;
                 auto spaces_end = spaces_beg+1;
@@ -1770,7 +1775,10 @@ void spaces_to_tabs(Context& context, NormalParams params)
                 it = spaces_end;
             }
             else
+            {
                 ++it;
+                start_of_line = false;
+            }
         }
     }
     if (not spaces.empty())
