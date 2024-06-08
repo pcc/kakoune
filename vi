@@ -2,4 +2,7 @@
 
 kak=$(dirname $(fish -c "realpath $0"))/src/kak
 
-$kak -s main "$@" || $kak -c main "$@"
+if [ ! -e $XDG_RUNTIME_DIR/kakoune/main ] ; then
+  sh -c "cd && $kak -s main -d &"
+fi
+$kak -c main "$@"
