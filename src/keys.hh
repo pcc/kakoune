@@ -9,6 +9,8 @@
 #include "unicode.hh"
 #include "vector.hh"
 
+#include <stdint.h>
+
 namespace Kakoune
 {
 

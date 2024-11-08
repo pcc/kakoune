@@ -3,6 +3,7 @@
 
 #include "string.hh"
 #include "meta.hh"
+#include <stdint.h>
 
 namespace Kakoune
 {

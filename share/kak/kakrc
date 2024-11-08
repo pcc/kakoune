@@ -55,3 +55,6 @@ set global indentwidth 2
 map global normal * "w _ b *"
 map global normal 0 <a-h>
 map global normal $ <a-l>
+
+eval %sh{kak-lsp --kakoune -s $kak_session}
+lsp-enable

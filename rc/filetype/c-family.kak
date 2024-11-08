@@ -384,7 +384,7 @@ declare-option -docstring %{
     Can be one of the following:
         ifdef: old style ifndef/define guard
         pragma: newer type of guard using "pragma once"
-} str c_include_guard_style "ifdef"
+} str c_include_guard_style "pragma"
 
 define-command -hidden c-family-insert-include-guards %{
     evaluate-commands %sh{

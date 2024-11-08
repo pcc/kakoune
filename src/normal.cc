@@ -2303,7 +2303,8 @@ void reformat(Context &context, NormalParams params)
     Buffer& buffer = context.buffer();
     if (buffer.name().ends_with(".c") || buffer.name().ends_with(".cc") ||
         buffer.name().ends_with(".cpp") || buffer.name().ends_with(".h") ||
-        buffer.name().ends_with(".hpp") || buffer.name().ends_with(".hh"))
+        buffer.name().ends_with(".hpp") || buffer.name().ends_with(".hh") ||
+        buffer.name().ends_with(".inc"))
     {
         clang_format(context, params);
         return;
@@ -2321,7 +2322,7 @@ void reformat(Context &context, NormalParams params)
             return select_paragraph(context, sel, 0,
                                     ObjectFlags::ToBegin | ObjectFlags::ToEnd);
         });
-    do_pipe<true>("fmt", context);
+    do_pipe<true>("fmt -72", context);
 }
 
 constexpr size_t keymap_max_size = 512;
